@@ -1,0 +1,628 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UAV Forecast API",
+    "description": "API for weather and satellite forecast data for drones",
+    "version": "v0.1 (beta)",
+    "contact": {
+      "email": "api@UAVForecast.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://www.uavforecast.com/api/v1",
+      "description": "UAV Forecast Server"
+    }
+  ],
+  "paths": {
+    "/forecast": {
+      "post": {
+        "summary": "Get forecast",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastRequestV1"
+              },
+              "examples": {
+                "exampleRequest": {
+                  "value": {
+                    "lat": 37.7749,
+                    "lon": -122.4194,
+                    "forecast_hours": 48,
+                    "wind_altitudes_m": [
+                      10,
+                      100,
+                      200
+                    ],
+                    "use_realtime_precip": true,
+                    "include_gps": true,
+                    "include_glonass": true,
+                    "include_galileo": true,
+                    "include_beidou": true,
+                    "gps_elevation_mask": 10,
+                    "kp_source": "auto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Forecast response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ForecastResponseV1"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CostOnlyResponseV1"
+                    }
+                  ]
+                },
+                "examples": {
+                  "exampleResponse": {
+                    "value": {
+                      "cost": {
+                        "amount": 0.39,
+                        "currency": "USD"
+                      },
+                      "current": {
+                        "time": {
+                          "utc": "2025-01-03T00:00:00Z",
+                          "local": "2025-01-02T16:00:00-08:00",
+                          "epoch_s": 1736467200
+                        },
+                        "wind_profile": [
+                          {
+                            "altitude_m": 0,
+                            "wind_speed_ms": 5.0,
+                            "wind_bearing_deg": 270,
+                            "gusts_ms": 7.2,
+                            "gusts_deg": 272,
+                            "t_c": 12.3
+                          }
+                        ],
+                        "temp_c": 12.3,
+                        "wind_chill_c": 11.5,
+                        "precip_prob_pct": 10.0,
+                        "precip_intensity_mmh": 0.2,
+                        "precip_type": "rain",
+                        "cloud_cover_pct": 50.0,
+                        "visibility_m": 15000,
+                        "humidity_pct": 65.0,
+                        "cloudbase_m": 750.0,
+                        "sats": {
+                          "gps": {
+                            "count": 10,
+                            "kp_count": 8.5
+                          },
+                          "glonass": {
+                            "count": 8,
+                            "kp_count": 6.0
+                          },
+                          "galileo": {
+                            "count": 9,
+                            "kp_count": 7.0
+                          },
+                          "beidou": {
+                            "count": 5,
+                            "kp_count": 4.0
+                          }
+                        },
+                        "weather_icon": "partly-cloudy-day",
+                        "density_altitude_m": 30.0,
+                        "pressure_msl_hpa": 1012.0,
+                        "kp": 3.0
+                      },
+                      "days": [
+                        {
+                          "date": "2025-01-02",
+                          "midnight": {
+                            "utc": "2025-01-02T08:00:00Z",
+                            "local": "2025-01-02T00:00:00-08:00",
+                            "epoch_s": 1736419200
+                          },
+                          "sunrise": {
+                            "utc": "2025-01-02T15:30:00Z",
+                            "local": "2025-01-02T07:30:00-08:00",
+                            "epoch_s": 1736446200
+                          },
+                          "solar_noon": {
+                            "utc": "2025-01-02T20:00:00Z",
+                            "local": "2025-01-02T12:00:00-08:00",
+                            "epoch_s": 1736462400
+                          },
+                          "sunset": {
+                            "utc": "2025-01-02T23:30:00Z",
+                            "local": "2025-01-02T15:30:00-08:00",
+                            "epoch_s": 1736475000
+                          },
+                          "rows": [
+                            {
+                              "time": {
+                                "utc": "2025-01-02T16:00:00Z",
+                                "local": "2025-01-02T08:00:00-08:00",
+                                "epoch_s": 1736457600
+                              },
+                              "wind_profile": [],
+                              "temp_c": 13.1,
+                              "wind_chill_c": 12.5,
+                              "precip_prob_pct": 15.0,
+                              "precip_intensity_mmh": 0.5,
+                              "precip_type": "rain",
+                              "cloud_cover_pct": 60.0,
+                              "visibility_m": 10000,
+                              "humidity_pct": 70.0,
+                              "cloudbase_m": 600.0,
+                              "sats": {},
+                              "weather_icon": "cloudy",
+                              "density_altitude_m": 40.0,
+                              "pressure_msl_hpa": 1013.0,
+                              "kp": 2.7
+                            }
+                          ]
+                        }
+                      ],
+                      "elevation_m": 16.0,
+                      "timezone": "America/Los_Angeles",
+                      "lat": 37.7749,
+                      "lon": -122.4194
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "exampleResponse": {
+                    "value": {
+                      "detail": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "exampleResponse": {
+                    "value": {
+                      "detail": "Server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Authorization: Bearer <api-key>",
+        "description": "Use the following format for the Authorization header: Bearer <api-key>. For testing purposes, use the special API key `test-s2SYt1vqS4BNKfLqffyDCbY6Z1Yo2Kmi`."
+      }
+    },
+    "schemas": {
+      "ForecastRequestV1": {
+        "type": "object",
+        "properties": {
+          "cost_only": {
+            "description": "If set to `true`, returns the cost of the request, without returning real data or incurring a charge.",
+            "type": "boolean"
+          },
+          "lat": {
+            "description": "The latitude of the location, in degrees, e.g. `21.409`.",
+            "type": "number"
+          },
+          "lon": {
+            "description": "The longitude of the location, in degrees, e.g. `-157.961`.",
+            "type": "number"
+          },
+          "forecast_hours": {
+            "description": "The number of hours ahead to forecast. Defaults to `0`.",
+            "type": "integer"
+          },
+          "wind_altitudes_m": {
+            "description": "An array altitudes (in meters) at which to request the wind forecast. The valid range is 10m to 5000m. Note that an altitude of 10m is considered ground level. The response will include wind data at each altitude requested. If you need wind data at ground level, be sure to include 10m in the list. Defaults to `[10]`, in which case the response will include wind data for the ground level only.",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "use_realtime_precip": {
+            "description": "If `true`, use real-time precipitation data. Defaults to `true`.",
+            "type": "boolean"
+          },
+          "include_gps": {
+            "description": "If `true`, include GPS satellite data. Defaults to `true`.",
+            "type": "boolean"
+          },
+          "include_glonass": {
+            "description": "If `true`, include GLONASS satellite data. Defaults to `true`.",
+            "type": "boolean"
+          },
+          "include_galileo": {
+            "description": "If `true`, include Galileo satellite data. Defaults to `true`.",
+            "type": "boolean"
+          },
+          "include_beidou": {
+            "description": "If `true`, include Beidou satellite data. Defaults to `true`.",
+            "type": "boolean"
+          },
+          "gps_elevation_mask": {
+            "description": "The GPS elevation mask, in degrees. Satellites below this elevation angle are considered invisible. Defaults to `0`.",
+            "type": "integer"
+          },
+          "kp_source": {
+            "description": "The source for the Kp index forecast. Possible values:<br/>- `auto` (default)<br/>- `noaa` to use NOAA as the source.",
+            "type": "string",
+            "enum": [
+              "auto",
+              "noaa"
+            ]
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "ForecastResponseV1": {
+        "type": "object",
+        "properties": {
+          "cost": {
+            "description": "The actual cost of the request.",
+            "$ref": "#/components/schemas/CurrencyAmount"
+          },
+          "current": {
+            "description": "Current conditions.",
+            "$ref": "#/components/schemas/ForecastRowV1"
+          },
+          "days": {
+            "description": "A list of forecast days. The first entry is always the current day.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForecastDayV1"
+            }
+          },
+          "elevation_m": {
+            "description": "The elevation of the forecast location, in meters.",
+            "type": "number"
+          },
+          "timezone": {
+            "description": "The timezone name, e.g. `America/New_York`.",
+            "type": "string"
+          },
+          "lat": {
+            "description": "The latitude of the location, in degrees.",
+            "type": "number"
+          },
+          "lon": {
+            "description": "The longitude of the location, in degrees.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "current",
+          "days",
+          "elevation_m",
+          "timezone",
+          "lat",
+          "lon"
+        ]
+      },
+      "CostOnlyResponseV1": {
+        "type": "object",
+        "properties": {
+          "cost": {
+            "description": "The cost that would have been incurred by the request.",
+            "$ref": "#/components/schemas/CurrencyAmount"
+          },
+          "cost_only": {
+            "description": "Indicates that this is a cost-only response. Always set to true.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cost_only"
+        ],
+        "additionalProperties": false
+      },
+      "ForecastDayV1": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "description": "The local date in ISO 8601 format, e.g. `2024-12-31`.",
+            "type": "string",
+            "format": "date"
+          },
+          "midnight": {
+            "description": "The time at local midnight.",
+            "$ref": "#/components/schemas/TimeV1"
+          },
+          "sunrise": {
+            "description": "The time of local sunrise. If sunrise does not occur on the given date (e.g. at high latitudes), this field may be absent.",
+            "$ref": "#/components/schemas/TimeV1"
+          },
+          "solar_noon": {
+            "description": "The time of local solar noon.",
+            "$ref": "#/components/schemas/TimeV1"
+          },
+          "sunset": {
+            "description": "The time of local sunset. If sunset does not occur on the given date (e.g. at high latitudes), this field may be absent.",
+            "$ref": "#/components/schemas/TimeV1"
+          },
+          "rows": {
+            "description": "A list of forecast rows for each hour remaining in the day. The time fields of the rows always have the minute set to zero. The list will be empty if there are no future hours left in the day.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForecastRowV1"
+            }
+          }
+        },
+        "required": [
+          "date",
+          "midnight",
+          "solar_noon",
+          "rows"
+        ]
+      },
+      "ForecastRowV1": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "description": "Time of the forecast.",
+            "$ref": "#/components/schemas/TimeV1"
+          },
+          "wind_profile": {
+            "description": "Wind profile at different altitudes.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WindProfileV1"
+            }
+          },
+          "temp_c": {
+            "description": "Temperature, in degrees Celsius.",
+            "type": "number"
+          },
+          "wind_chill_c": {
+            "description": "Wind chill temperature, in degrees Celsius.",
+            "type": "number"
+          },
+          "precip_prob_pct": {
+            "description": "Probability of precipitation, as a percentage from 0 to 100.",
+            "type": "number"
+          },
+          "precip_intensity_mmh": {
+            "description": "Precipitation intensity, in millimeters of liquid water per hour.",
+            "type": "number"
+          },
+          "precip_type": {
+            "description": "Type of precipitation, one of: `rain`, `snow`, `sleet`, or `hail`.",
+            "type": "string",
+            "enum": [
+              "rain",
+              "snow",
+              "sleet",
+              "hail"
+            ]
+          },
+          "cloud_cover_pct": {
+            "description": "Cloud cover, as a percentage from 0 to 100.",
+            "type": "number"
+          },
+          "visibility_m": {
+            "description": "Visibility, in meters.",
+            "type": "number"
+          },
+          "humidity_pct": {
+            "description": "Relative humidity, as a percentage from 0 to 100.",
+            "type": "number"
+          },
+          "cloudbase_m": {
+            "description": "Cloud base altitude, in meters. If there are no clouds, this field may be absent.",
+            "type": "number"
+          },
+          "sats": {
+            "description": "Instantaneous GPS satellite data.",
+            "$ref": "#/components/schemas/GpsSatellitesV1"
+          },
+          "weather_icon": {
+            "description": "Weather icon code, one of: `clear-day`, `clear-night`, `rain`, `snow`, `sleet`, `wind`, `fog`, `cloudy`, `partly-cloudy-day`, or `partly-cloudy-night`.",
+            "type": "string",
+            "enum": [
+              "clear-day",
+              "clear-night",
+              "rain",
+              "snow",
+              "sleet",
+              "wind",
+              "fog",
+              "cloudy",
+              "partly-cloudy-day",
+              "partly-cloudy-night"
+            ]
+          },
+          "density_altitude_m": {
+            "description": "Density altitude, in meters.",
+            "type": "number"
+          },
+          "pressure_msl_hpa": {
+            "description": "Mean sea level pressure, in hectopascals (hPa).",
+            "type": "number"
+          },
+          "kp": {
+            "description": "The Kp index.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "time",
+          "wind_profile",
+          "temp_c",
+          "wind_chill_c",
+          "precip_prob_pct",
+          "precip_intensity_mmh",
+          "cloud_cover_pct",
+          "visibility_m",
+          "humidity_pct",
+          "sats",
+          "weather_icon",
+          "density_altitude_m",
+          "pressure_msl_hpa",
+          "kp"
+        ]
+      },
+      "WindProfileV1": {
+        "type": "object",
+        "properties": {
+          "altitude_m": {
+            "description": "Altitude, in meters. If absent, or set to 10m, indicates surface (ground) level data.",
+            "type": "integer"
+          },
+          "wind_speed_ms": {
+            "description": "Wind speed, in meters per second.",
+            "type": "number"
+          },
+          "wind_bearing_deg": {
+            "description": "Wind bearing, in degrees, in the range 0 to 360. The bearing points in the direction the wind is blowing from. For example, if the wind is blowing from the South, the bearing will be 180 degrees. If the wind speed is zero, this field may be absent.",
+            "type": "number"
+          },
+          "gust_speed_ms": {
+            "description": "Gust speed, in meters per second.",
+            "type": "number"
+          },
+          "gust_bearing_deg": {
+            "description": "Gust bearing, in degrees, in the range 0 to 360. The bearing points in the direction the wind is blowing from. For example, if the gust is blowing from the South, the bearing will be 180 degrees. If the gust speed is zero, this field may be absent.",
+            "type": "number"
+          },
+          "t_c": {
+            "description": "Temperature, in degrees Celsius.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "wind_speed_ms",
+          "gust_speed_ms",
+          "t_c"
+        ]
+      },
+      "GpsSatellitesV1": {
+        "type": "object",
+        "properties": {
+          "gps": {
+            "description": "GPS satellite count.",
+            "$ref": "#/components/schemas/SatelliteCountV1"
+          },
+          "glonass": {
+            "description": "GLONASS satellite count.",
+            "$ref": "#/components/schemas/SatelliteCountV1"
+          },
+          "galileo": {
+            "description": "Galileo satellite count.",
+            "$ref": "#/components/schemas/SatelliteCountV1"
+          },
+          "beidou": {
+            "description": "Beidou satellite count.",
+            "$ref": "#/components/schemas/SatelliteCountV1"
+          }
+        },
+        "required": []
+      },
+      "SatelliteCountV1": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "description": "The number of satellites visible.",
+            "type": "integer"
+          },
+          "kp_count": {
+            "description": "The expected number of satellites locked, taking the Kp index and other factors into consideration.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "kp_count"
+        ]
+      },
+      "TimeV1": {
+        "type": "object",
+        "properties": {
+          "utc": {
+            "description": "UTC time in ISO 8601 format, e.g. `2025-01-10T00:00:00Z`.",
+            "type": "string"
+          },
+          "local": {
+            "description": "Local time in ISO 8601 format, e.g. `2025-01-09T14:00:00-10:00`.",
+            "type": "string"
+          },
+          "epoch_s": {
+            "description": "Unix epoch time in seconds, e.g. `1736467200`.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "utc",
+          "local",
+          "epoch_s"
+        ]
+      },
+      "CurrencyAmount": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "description": "The amount as a decimal, e.g. `0.39`.",
+            "type": "number"
+          },
+          "currency": {
+            "description": "The currency code, e.g. `USD`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ]
+      }
+    }
+  }
+}
