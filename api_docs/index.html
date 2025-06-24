@@ -1,0 +1,821 @@
+<style>
+  body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2em;
+  background-color: #fafafa;
+  color: #333;
+  line-height: 1.6;
+}
+
+h1, h2, h3 {
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+p {
+  margin-bottom: 1em;
+}
+
+code {
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+  font-size: 0.95em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+th, td {
+  padding: 0.75em;
+  border: 1px solid #ddd;
+  vertical-align: top;
+}
+
+th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 2em 0;
+}
+</style>
+
+<h1 id="uav-forecast-api-documentation">UAV Forecast API Documentation</h1>
+
+<h3 id="version-v01-beta">Version: v0.1 (beta)</h3>
+
+<p><em>Last updated: 2025-06-18</em></p>
+
+<p>This document describes the API for UAV Forecast, which provides weather and satellite forecast information for drones.</p>
+
+<p>For support and other inquiries, please contact api@UAVForecast.com.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>The base endpoint for the API is:</p>
+
+<pre><code>POST https://www.uavforecast.com/api/v1/forecast
+</code></pre>
+
+<p>The API accepts a JSON request body, defined by <a href="#forecastrequestv1">ForecastRequestV1</a>, containing the desired location and forecast parameters. The response is a JSON object, defined by <a href="#forecastresponsev1">ForecastResponseV1</a>, which includes current conditions, forecast data, and cost information.</p>
+
+<p>Your API key should be supplied in the <code>Authorization</code> header (see below). If you do not have an API key yet, please contact api@UAVForecast.com.</p>
+
+<p><strong>Warning:</strong> It is your responsibility to keep your API key secret. Do not include your API key in any binaries or other files distributed to the public. This includes API keys compiled into a binary, obfuscated or otherwise.</p>
+
+<h3 id="api-cost">API Cost</h3>
+
+<p>Every response returns a <a href="#costonlyresponsev1.cost"><code>cost</code></a> field indicating the cost incurred by the request. The API provides a mechanism to determine the cost of an API request without actually incurring that cost; see <a href="#forecastrequestv1.cost_only"><code>cost_only</code></a> below.</p>
+
+<p>The cost of each API request currently depends on three factors:</p>
+
+<ul>
+<li>The number of hours of forecast requested.</li>
+<li>The maximum wind altitude.</li>
+<li>The number of wind altitude levels.</li>
+</ul>
+
+<p>Note that the forecast engine produces forecasts at key altitudes, and the cost depends on which of these key altitudes are used. Therefore, you may find the cost does not always increase when requesting additional altitudes between these key levels.</p>
+
+<p>Here are some example costs:</p>
+
+<table>
+<thead>
+<tr>
+  <th>Forecast Hours</th>
+  <th>Wind Altitudes (m)</th>
+  <th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>0</td>
+  <td>10</td>
+  <td>$0.20</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td>10</td>
+  <td>$0.22</td>
+</tr>
+<tr>
+  <td>7 * 24 = 168</td>
+  <td>10, 30, 80, 200, 500</td>
+  <td>$0.31</td>
+</tr>
+<tr>
+  <td>15 * 24 = 360</td>
+  <td>10, 30, 80, 200, 500, 1000, 1500</td>
+  <td>$0.41</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="test-api-keys">Test API Keys</h3>
+
+<p>For testing purposes, you may use the special API key <code>test-s2SYt1vqS4BNKfLqffyDCbY6Z1Yo2Kmi</code>. This API key is free to use and does not incur any costs against your API balance. The format of the response will be identical to a real chargeable request, but dummy forecast data will be returned and the latlon of the response will be set to Honolulu, Hawaii. This can be useful for validating your code and examining the output format in more detail.</p>
+
+<hr />
+
+<h2 id="request-format">Request Format</h2>
+
+<h3 id="endpoint">Endpoint</h3>
+
+<pre><code>POST https://www.uavforecast.com/api/v1/forecast
+</code></pre>
+
+<p>Please note that for security, all requests must be made via HTTPS.</p>
+
+<h3 id="headers">Headers</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Header</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Authorization</code></td>
+  <td><code>Bearer &lt;api-key&gt;</code></td>
+</tr>
+<tr>
+  <td><code>Content-Type</code></td>
+  <td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="body">Body</h3>
+
+<p>The body must be a JSON object described by the schema <a href="#forecastrequestv1">ForecastRequestV1</a>.</p>
+
+<hr />
+
+<h2 id="response-format">Response Format</h2>
+
+<h3 id="success-response">Success Response</h3>
+
+<p>A successful request will return a JSON object following the schema <a href="#forecastresponsev1">ForecastResponseV1</a>.</p>
+
+<p>Note that requests for many forecast hours and wind altitudes may produce large JSON responses. To improve latency, the API supports <code>gzip</code> compression, which will be used when the <code>Accept-Encoding</code> header in the request includes <code>gzip</code>. We recommend using a fast JSON deserialization library on the client side to improve application latency; for example, in Python, we recommend using <code>orjson</code> instead of Python's built-in <code>json</code> library.</p>
+
+<h4 id="cost-only-requests">Cost-Only Requests</h4>
+
+<p>When <a href="#forecastrequestv1.cost_only"><code>cost_only</code></a> is set to <code>true</code> in the request, the API will respond with <a href="#costonlyresponsev1">CostOnlyResponseV1</a>. If and only if a cost would have otherwise been incurred by the request, the response will contain a <a href="#costonlyresponsev1.cost"><code>cost</code></a> field of type <a href="#currencyamount">CurrencyAmount</a> equal to that cost. Cost-only requests do not consume any API balance.</p>
+
+<h3 id="error-responses">Error Responses</h3>
+
+<p>In the event of errors (e.g., missing parameters, invalid API key), the API will return appropriate HTTP status codes (4xx for client errors, 5xx for server errors) and a JSON payload that may contain details about the error. For instance:</p>
+
+<div class="codehilite">
+<pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Invalid API key&quot;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="schemas">Schemas</h2>
+
+<h3 id="forecastrequestv1">ForecastRequestV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='forecastrequestv1.cost_only'><code>cost_only</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If set to <code>true</code>, returns the cost of the request, without returning real data or incurring a charge.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.lat'><code>lat</code></span></td>
+  <td>float</td>
+  <td>The latitude of the location, in degrees, e.g. <code>21.409</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.lon'><code>lon</code></span></td>
+  <td>float</td>
+  <td>The longitude of the location, in degrees, e.g. <code>-157.961</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.forecast_hours'><code>forecast_hours</code></span></td>
+  <td>integer (optional)</td>
+  <td>The number of hours ahead to forecast. Defaults to <code>0</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.wind_altitudes_m'><code>wind_altitudes_m</code></span></td>
+  <td>array of integer (optional)</td>
+  <td>An array altitudes (in meters) at which to request the wind forecast. The valid range is 10m to 5000m. Note that an altitude of 10m is considered ground level. The response will include wind data at each altitude requested. If you need wind data at ground level, be sure to include 10m in the list. Defaults to <code>[10]</code>, in which case the response will include wind data for the ground level only.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.use_realtime_precip'><code>use_realtime_precip</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If <code>true</code>, use real-time precipitation data. Defaults to <code>true</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.include_gps'><code>include_gps</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If <code>true</code>, include GPS satellite data. Defaults to <code>true</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.include_glonass'><code>include_glonass</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If <code>true</code>, include GLONASS satellite data. Defaults to <code>true</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.include_galileo'><code>include_galileo</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If <code>true</code>, include Galileo satellite data. Defaults to <code>true</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.include_beidou'><code>include_beidou</code></span></td>
+  <td>boolean (optional)</td>
+  <td>If <code>true</code>, include Beidou satellite data. Defaults to <code>true</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.gps_elevation_mask'><code>gps_elevation_mask</code></span></td>
+  <td>integer (optional)</td>
+  <td>The GPS elevation mask, in degrees. Satellites below this elevation angle are considered invisible. Defaults to <code>0</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrequestv1.kp_source'><code>kp_source</code></span></td>
+  <td>string (optional)</td>
+  <td>The source for the Kp index forecast. Possible values:<br/>- <code>auto</code> (default)<br/>- <code>noaa</code> to use NOAA as the source.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="forecastresponsev1">ForecastResponseV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='forecastresponsev1.cost'><code>cost</code></span></td>
+  <td><a href="#currencyamount">CurrencyAmount</a> (optional)</td>
+  <td>The actual cost of the request.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.current'><code>current</code></span></td>
+  <td><a href="#forecastrowv1">ForecastRowV1</a></td>
+  <td>Current conditions.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.days'><code>days</code></span></td>
+  <td>array of <a href="#forecastdayv1">ForecastDayV1</a></td>
+  <td>A list of forecast days. The first entry is always the current day.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.elevation_m'><code>elevation_m</code></span></td>
+  <td>float</td>
+  <td>The elevation of the forecast location, in meters.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.timezone'><code>timezone</code></span></td>
+  <td>string</td>
+  <td>The timezone name, e.g. <code>America/New_York</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.lat'><code>lat</code></span></td>
+  <td>float</td>
+  <td>The latitude of the location, in degrees.</td>
+</tr>
+<tr>
+  <td><span id='forecastresponsev1.lon'><code>lon</code></span></td>
+  <td>float</td>
+  <td>The longitude of the location, in degrees.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="costonlyresponsev1">CostOnlyResponseV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='costonlyresponsev1.cost'><code>cost</code></span></td>
+  <td><a href="#currencyamount">CurrencyAmount</a> (optional)</td>
+  <td>The cost that would have been incurred by the request.</td>
+</tr>
+<tr>
+  <td><span id='costonlyresponsev1.cost_only'><code>cost_only</code></span></td>
+  <td>boolean</td>
+  <td>Indicates that this is a cost-only response. Always set to true.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="forecastdayv1">ForecastDayV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='forecastdayv1.date'><code>date</code></span></td>
+  <td>string</td>
+  <td>The local date in ISO 8601 format, e.g. <code>2024-12-31</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastdayv1.midnight'><code>midnight</code></span></td>
+  <td><a href="#timev1">TimeV1</a></td>
+  <td>The time at local midnight.</td>
+</tr>
+<tr>
+  <td><span id='forecastdayv1.sunrise'><code>sunrise</code></span></td>
+  <td><a href="#timev1">TimeV1</a> (optional)</td>
+  <td>The time of local sunrise. If sunrise does not occur on the given date (e.g. at high latitudes), this field may be absent.</td>
+</tr>
+<tr>
+  <td><span id='forecastdayv1.solar_noon'><code>solar_noon</code></span></td>
+  <td><a href="#timev1">TimeV1</a></td>
+  <td>The time of local solar noon.</td>
+</tr>
+<tr>
+  <td><span id='forecastdayv1.sunset'><code>sunset</code></span></td>
+  <td><a href="#timev1">TimeV1</a> (optional)</td>
+  <td>The time of local sunset. If sunset does not occur on the given date (e.g. at high latitudes), this field may be absent.</td>
+</tr>
+<tr>
+  <td><span id='forecastdayv1.rows'><code>rows</code></span></td>
+  <td>array of <a href="#forecastrowv1">ForecastRowV1</a></td>
+  <td>A list of forecast rows for each hour remaining in the day. The time fields of the rows always have the minute set to zero. The list will be empty if there are no future hours left in the day.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="forecastrowv1">ForecastRowV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='forecastrowv1.time'><code>time</code></span></td>
+  <td><a href="#timev1">TimeV1</a></td>
+  <td>Time of the forecast.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.wind_profile'><code>wind_profile</code></span></td>
+  <td>array of <a href="#windprofilev1">WindProfileV1</a></td>
+  <td>Wind profile at different altitudes.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.temp_c'><code>temp_c</code></span></td>
+  <td>float</td>
+  <td>Temperature, in degrees Celsius.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.wind_chill_c'><code>wind_chill_c</code></span></td>
+  <td>float</td>
+  <td>Wind chill temperature, in degrees Celsius.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.precip_prob_pct'><code>precip_prob_pct</code></span></td>
+  <td>float</td>
+  <td>Probability of precipitation, as a percentage from 0 to 100.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.precip_intensity_mmh'><code>precip_intensity_mmh</code></span></td>
+  <td>float</td>
+  <td>Precipitation intensity, in millimeters of liquid water per hour.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.precip_type'><code>precip_type</code></span></td>
+  <td>string (optional)</td>
+  <td>Type of precipitation, one of: <code>rain</code>, <code>snow</code>, <code>sleet</code>, or <code>hail</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.cloud_cover_pct'><code>cloud_cover_pct</code></span></td>
+  <td>float</td>
+  <td>Cloud cover, as a percentage from 0 to 100.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.visibility_m'><code>visibility_m</code></span></td>
+  <td>float</td>
+  <td>Visibility, in meters.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.humidity_pct'><code>humidity_pct</code></span></td>
+  <td>float</td>
+  <td>Relative humidity, as a percentage from 0 to 100.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.cloudbase_m'><code>cloudbase_m</code></span></td>
+  <td>float (optional)</td>
+  <td>Cloud base altitude, in meters. If there are no clouds, this field may be absent.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.sats'><code>sats</code></span></td>
+  <td><a href="#gpssatellitesv1">GpsSatellitesV1</a></td>
+  <td>Instantaneous GPS satellite data.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.weather_icon'><code>weather_icon</code></span></td>
+  <td>string</td>
+  <td>Weather icon code, one of: <code>clear-day</code>, <code>clear-night</code>, <code>rain</code>, <code>snow</code>, <code>sleet</code>, <code>wind</code>, <code>fog</code>, <code>cloudy</code>, <code>partly-cloudy-day</code>, or <code>partly-cloudy-night</code>.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.density_altitude_m'><code>density_altitude_m</code></span></td>
+  <td>float</td>
+  <td>Density altitude, in meters.</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.pressure_msl_hpa'><code>pressure_msl_hpa</code></span></td>
+  <td>float</td>
+  <td>Mean sea level pressure, in hectopascals (hPa).</td>
+</tr>
+<tr>
+  <td><span id='forecastrowv1.kp'><code>kp</code></span></td>
+  <td>float</td>
+  <td>The Kp index.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="windprofilev1">WindProfileV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='windprofilev1.altitude_m'><code>altitude_m</code></span></td>
+  <td>integer (optional)</td>
+  <td>Altitude, in meters. If absent, or set to 10m, indicates surface (ground) level data.</td>
+</tr>
+<tr>
+  <td><span id='windprofilev1.wind_speed_ms'><code>wind_speed_ms</code></span></td>
+  <td>float</td>
+  <td>Wind speed, in meters per second.</td>
+</tr>
+<tr>
+  <td><span id='windprofilev1.wind_bearing_deg'><code>wind_bearing_deg</code></span></td>
+  <td>float (optional)</td>
+  <td>Wind bearing, in degrees, in the range 0 to 360. The bearing points in the direction the wind is blowing from. For example, if the wind is blowing from the South, the bearing will be 180 degrees. If the wind speed is zero, this field may be absent.</td>
+</tr>
+<tr>
+  <td><span id='windprofilev1.gust_speed_ms'><code>gust_speed_ms</code></span></td>
+  <td>float</td>
+  <td>Gust speed, in meters per second.</td>
+</tr>
+<tr>
+  <td><span id='windprofilev1.gust_bearing_deg'><code>gust_bearing_deg</code></span></td>
+  <td>float (optional)</td>
+  <td>Gust bearing, in degrees, in the range 0 to 360. The bearing points in the direction the wind is blowing from. For example, if the gust is blowing from the South, the bearing will be 180 degrees. If the gust speed is zero, this field may be absent.</td>
+</tr>
+<tr>
+  <td><span id='windprofilev1.t_c'><code>t_c</code></span></td>
+  <td>float</td>
+  <td>Temperature, in degrees Celsius.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="gpssatellitesv1">GpsSatellitesV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='gpssatellitesv1.gps'><code>gps</code></span></td>
+  <td><a href="#satellitecountv1">SatelliteCountV1</a> (optional)</td>
+  <td>GPS satellite count.</td>
+</tr>
+<tr>
+  <td><span id='gpssatellitesv1.glonass'><code>glonass</code></span></td>
+  <td><a href="#satellitecountv1">SatelliteCountV1</a> (optional)</td>
+  <td>GLONASS satellite count.</td>
+</tr>
+<tr>
+  <td><span id='gpssatellitesv1.galileo'><code>galileo</code></span></td>
+  <td><a href="#satellitecountv1">SatelliteCountV1</a> (optional)</td>
+  <td>Galileo satellite count.</td>
+</tr>
+<tr>
+  <td><span id='gpssatellitesv1.beidou'><code>beidou</code></span></td>
+  <td><a href="#satellitecountv1">SatelliteCountV1</a> (optional)</td>
+  <td>Beidou satellite count.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="satellitecountv1">SatelliteCountV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='satellitecountv1.count'><code>count</code></span></td>
+  <td>integer</td>
+  <td>The number of satellites visible.</td>
+</tr>
+<tr>
+  <td><span id='satellitecountv1.kp_count'><code>kp_count</code></span></td>
+  <td>float</td>
+  <td>The expected number of satellites locked, taking the Kp index and other factors into consideration.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="timev1">TimeV1</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='timev1.utc'><code>utc</code></span></td>
+  <td>string</td>
+  <td>UTC time in ISO 8601 format, e.g. <code>2025-01-10T00:00:00Z</code>.</td>
+</tr>
+<tr>
+  <td><span id='timev1.local'><code>local</code></span></td>
+  <td>string</td>
+  <td>Local time in ISO 8601 format, e.g. <code>2025-01-09T14:00:00-10:00</code>.</td>
+</tr>
+<tr>
+  <td><span id='timev1.epoch_s'><code>epoch_s</code></span></td>
+  <td>integer</td>
+  <td>Unix epoch time in seconds, e.g. <code>1736467200</code>.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="currencyamount">CurrencyAmount</h3>
+
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Type</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><span id='currencyamount.amount'><code>amount</code></span></td>
+  <td>float</td>
+  <td>The amount as a decimal, e.g. <code>0.39</code>.</td>
+</tr>
+<tr>
+  <td><span id='currencyamount.currency'><code>currency</code></span></td>
+  <td>string</td>
+  <td>The currency code, e.g. <code>USD</code>.</td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<h2 id="example-python-code">Example Python Code</h2>
+
+<div class="codehilite">
+<pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="n">API_URL</span> <span class="o">=</span> <span class="s2">&quot;https://www.uavforecast.com/api/v1/forecast&quot;</span>
+<span class="n">API_KEY</span> <span class="o">=</span> <span class="s2">&quot;test-s2SYt1vqS4BNKfLqffyDCbY6Z1Yo2Kmi&quot;</span>
+
+<span class="c1"># Request payload</span>
+<span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="mf">21.409</span><span class="p">,</span>  <span class="c1"># Honolulu, Hawaii</span>
+    <span class="s2">&quot;lon&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">157.961</span><span class="p">,</span>
+    <span class="s2">&quot;forecast_hours&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+    <span class="s2">&quot;wind_altitudes_m&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">],</span>
+    <span class="s2">&quot;gps_elevation_mask&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># HTTP headers</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">API_KEY</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
+
+<span class="c1"># Send request</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">API_URL</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+
+<span class="c1"># Handle response</span>
+<span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Forecast received:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">status_code</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;detail&quot;</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error response:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Status code: </span><span class="si">{</span><span class="n">status_code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Message: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="example-request">Example Request</h2>
+
+<div class="codehilite">
+<pre><span></span><code><span class="err">POST</span><span class="w"> </span><span class="err">h</span><span class="kc">tt</span><span class="err">ps</span><span class="p">:</span><span class="c1">//www.uavforecast.com/api/v1/forecast</span>
+
+<span class="err">Au</span><span class="kc">t</span><span class="err">horiza</span><span class="kc">t</span><span class="err">io</span><span class="kc">n</span><span class="p">:</span><span class="w"> </span><span class="err">Bearer</span><span class="w"> </span><span class="kc">test</span><span class="mi">-</span><span class="err">s</span><span class="mi">2</span><span class="err">SY</span><span class="kc">t</span><span class="mi">1</span><span class="err">vqS</span><span class="mi">4</span><span class="err">BNK</span><span class="kc">f</span><span class="err">Lq</span><span class="kc">ff</span><span class="err">yDCbY</span><span class="mi">6</span><span class="err">Z</span><span class="mi">1</span><span class="err">Yo</span><span class="mi">2</span><span class="err">Kmi</span>
+<span class="err">Co</span><span class="kc">ntent</span><span class="mi">-</span><span class="err">Type</span><span class="p">:</span><span class="w"> </span><span class="err">applica</span><span class="kc">t</span><span class="err">io</span><span class="kc">n</span><span class="err">/jso</span><span class="kc">n</span>
+
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;lat&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">37.7749</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;lon&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-122.4194</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;forecast_hours&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">48</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;wind_altitudes_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;use_realtime_precip&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include_gps&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include_glonass&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include_galileo&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include_beidou&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;gps_elevation_mask&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;kp_source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h2 id="example-response">Example Response</h2>
+
+<p>Abbreviated for brevity.</p>
+
+<div class="codehilite">
+<pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;cost&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.39</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;current&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;time&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-03T00:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T16:00:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736467200</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;wind_profile&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;altitude_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;wind_speed_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;wind_bearing_deg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">270</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;gusts_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">7.2</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;gusts_deg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">272</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;t_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12.3</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;altitude_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;wind_speed_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">6.5</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;wind_bearing_deg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">275</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;gusts_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">8.0</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;gusts_deg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">280</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;t_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">11.0</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;temp_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12.3</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;wind_chill_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">11.5</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;precip_prob_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;precip_intensity_mmh&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;precip_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rain&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;cloud_cover_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;visibility_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">15000</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;humidity_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">65.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;cloudbase_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">750.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;sats&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;gps&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;kp_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">8.5</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;glonass&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;kp_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">6.0</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;galileo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;kp_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">7.0</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;beidou&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;kp_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4.0</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;weather_icon&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;partly-cloudy-day&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;density_altitude_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">30.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;pressure_msl_hpa&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1012.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;kp&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3.0</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;days&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;midnight&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T08:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T00:00:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736419200</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;sunrise&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T15:30:00Z&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T07:30:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736446200</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;solar_noon&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T20:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T12:00:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736462400</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;sunset&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T23:30:00Z&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T15:30:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736475000</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;rows&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;time&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;utc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T16:00:00Z&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;local&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-01-02T08:00:00-08:00&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;epoch_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1736457600</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">          </span><span class="nt">&quot;wind_profile&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">],</span>
+<span class="w">          </span><span class="nt">&quot;temp_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">13.1</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;wind_chill_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12.5</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;precip_prob_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">15.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;precip_intensity_mmh&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;precip_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rain&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;cloud_cover_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">60.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;visibility_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10000</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;humidity_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">70.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;cloudbase_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">600.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;sats&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">},</span>
+<span class="w">          </span><span class="nt">&quot;weather_icon&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cloudy&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;density_altitude_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;pressure_msl_hpa&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1013.0</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;kp&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">2.7</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;elevation_m&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">16.0</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;timezone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;America/Los_Angeles&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;lat&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">37.7749</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;lon&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-122.4194</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p><hr>
+Copyright © Matthew Lloyd, 2025. All rights reserved.</p>
