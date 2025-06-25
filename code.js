@@ -1,8 +1,25 @@
-
 const API_KEY = "YeqBjBJJA6AHrNTulASeIIgtY2AqloOS";
 const FORECAST_HOURS = 24;
 const ALTITUDES = [10, 100, 200, 500];
 
+
+function weatherIconToEmoji(icon) {
+  switch (icon) {
+    case "clear-day": return "☀️";
+    case "clear-night": return "🌙";
+    case "rain": return "🌧️";
+    case "snow": return "❄️";
+    case "sleet": return "🌨️";
+    case "wind": return "💨";
+    case "fog": return "🌫️";
+    case "cloudy": return "☁️";
+    case "partly-cloudy-day": return "⛅";
+    case "partly-cloudy-night": return "🌥️";
+    case "hail": return "🌨️";
+    case "thunderstorm": return "🌩️";
+    default: return "";
+  }
+}
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -22,25 +39,20 @@ function updateWeatherForActiveSheet() {
   updateWeatherReportForSheet(sheet, lat, lon);
 }
 
-
-// Запускайте updateWeatherForAllSheets! (не updateWeatherReport)
 function updateWeatherForAllSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
 
   for (const sheet of sheets) {
-    // Получаем координаты из ячеек A1 и B1 на каждом листе
     const lat = parseFloat(sheet.getRange("A1").getValue());
     const lon = parseFloat(sheet.getRange("B1").getValue());
     if (isNaN(lat) || isNaN(lon)) {
       sheet.appendRow(["ERROR: Введите координаты в ячейки A1 (LAT), B1 (LON)"]);
       continue;
     }
-    // Можно очистить старые данные, если нужно, кроме первой строки (координаты)
     // sheet.getRange(2,1,sheet.getMaxRows()-1,sheet.getMaxColumns()).clearContent();
-
     updateWeatherReportForSheet(sheet, lat, lon);
-    SpreadsheetApp.flush(); // чтобы не зависал интерфейс
+    SpreadsheetApp.flush();
   }
 }
 
@@ -98,7 +110,7 @@ function updateWeatherReportForSheet(sheet, LAT, LON) {
       sheet.appendRow([
         "Час", "Вітер", "Пориви", "Макс. висота", "Температура", "Вологість",
         "Вірогідність опадів", "Опади", "Хмарність", "База хмар", "Видимість",
-        "Видимі супутн.", "Кр-індекс", "Оцінка супутн. прибл.", "Можна літати?"
+        "Видимі супутн.", "Кр-індекс", "Оцінка супутн. прибл.", "Можна літати?", "Погода"
       ]);
       for (let h = 0; h < 24; h++) {
         let hourStr = (h < 10 ? "0" : "") + h + ":00";
@@ -127,11 +139,12 @@ function updateWeatherReportForSheet(sheet, LAT, LON) {
             sat,
             kp,
             estimate,
-            "так"
+            "так",
+            weatherIconToEmoji(row.weather_icon) // <-- тут emoji
           ]);
         } else {
           sheet.appendRow([
-            hourStr, "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"
+            hourStr, "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"
           ]);
         }
       }
@@ -150,7 +163,7 @@ function appendCurrentConditionsBlock(current, sheet) {
   sheet.appendRow(["Поточні умови станом: " + formatTime(current.time.local)]);
   sheet.appendRow([
     "Температура", "Вологість", "Хмарність", "База хмар", "Тиск", "Щільність висоти",
-    "Вітер", "Пориви", "Видимість", "Погода", "GPS", "GLONASS", "Galileo", "Beidou", "Kp-індекс"
+    "Вітер", "Пориви", "Видимість", "Погода", "GPS", "GLONASS", "Galileo", "Beidou", "Kp-індекс", "Погода"
   ]);
   const surfaceWind = current.wind_profile && current.wind_profile.length > 0 ? current.wind_profile[0] : {};
   sheet.appendRow([
@@ -168,19 +181,18 @@ function appendCurrentConditionsBlock(current, sheet) {
     current.sats && current.sats.glonass && current.sats.glonass.count !== undefined ? current.sats.glonass.count : "-",
     current.sats && current.sats.galileo && current.sats.galileo.count !== undefined ? current.sats.galileo.count : "-",
     current.sats && current.sats.beidou && current.sats.beidou.count !== undefined ? current.sats.beidou.count : "-",
-    current.kp != undefined ? current.kp.toFixed(2) : "-"
+    current.kp != undefined ? current.kp.toFixed(2) : "-",
+    weatherIconToEmoji(current.weather_icon) 
   ]);
   sheet.appendRow([""]);
 }
 
-// --- Формула для "Оцінка супутн. прибл." ---
 function estimateSatellites(row) {
   const sat = row.sats && row.sats.gps && row.sats.gps.count ? +row.sats.gps.count : 0;
   const kp = row.kp != undefined ? +row.kp : 1.0;
   return sat && kp ? (sat * kp).toFixed(1) : "-";
 }
 
-// --- Украинский день недели ---
 function getUkrWeekday(date) {
   if (!(date instanceof Date)) date = new Date(date);
   if (isNaN(date.getTime())) return "-";
@@ -188,14 +200,13 @@ function getUkrWeekday(date) {
   return days[date.getDay()];
 }
 
-// --- Формат времени (часы:минуты) ---
+
 function formatTime(localStr) {
   const d = new Date(localStr);
   if (isNaN(d.getTime())) return "-";
   return Utilities.formatDate(d, Session.getScriptTimeZone(), "HH:mm");
 }
 
-// --- Остальные функции (форматирование) ---
 function formatWind(speed, bearing) {
   if (speed == null) return "-";
   const dirs = ["↑","↗","→","↘","↓","↙","←","↖"];
