@@ -33,7 +33,7 @@ function updateWeatherForActiveSheet() {
   const lat = parseFloat(sheet.getRange("A1").getValue());
   const lon = parseFloat(sheet.getRange("B1").getValue());
   if (isNaN(lat) || isNaN(lon)) {
-    SpreadsheetApp.getUi().alert("Введите координаты в ячейки A1 (LAT), B1 (LON)!");
+    SpreadsheetApp.getUi().alert("Введіть координати в комірки A1 (LAT), B1 (LON)!");
     return;
   }
   updateWeatherReportForSheet(sheet, lat, lon);
@@ -47,10 +47,9 @@ function updateWeatherForAllSheets() {
     const lat = parseFloat(sheet.getRange("A1").getValue());
     const lon = parseFloat(sheet.getRange("B1").getValue());
     if (isNaN(lat) || isNaN(lon)) {
-      sheet.appendRow(["ERROR: Введите координаты в ячейки A1 (LAT), B1 (LON)"]);
+      sheet.appendRow(["ERROR: Введіть координати в комірки A1 (LAT), B1 (LON)"]);
       continue;
     }
-    // sheet.getRange(2,1,sheet.getMaxRows()-1,sheet.getMaxColumns()).clearContent();
     updateWeatherReportForSheet(sheet, lat, lon);
     SpreadsheetApp.flush();
   }
@@ -140,7 +139,7 @@ function updateWeatherReportForSheet(sheet, LAT, LON) {
             kp,
             estimate,
             "так",
-            weatherIconToEmoji(row.weather_icon) // <-- тут emoji
+            weatherIconToEmoji(row.weather_icon) 
           ]);
         } else {
           sheet.appendRow([
@@ -157,8 +156,6 @@ function updateWeatherReportForSheet(sheet, LAT, LON) {
     sheet.appendRow(["CRITICAL ERROR", String(err)]);
   }
 }
-
-// --- Добавляет блок "Поточні умови станом" ---
 function appendCurrentConditionsBlock(current, sheet) {
   sheet.appendRow(["Поточні умови станом: " + formatTime(current.time.local)]);
   sheet.appendRow([
